@@ -3,9 +3,9 @@ import sys
 import pygame
 from pygame import mixer
 
-from src.coin_class import Coin
-from src.player_class import Player
-from src.spike_classes import (Ceilling_Spike, East_Wall_Spike, 
+from src.coin import Coin
+from src.player import Player
+from src.spike import (Ceilling_Spike, East_Wall_Spike, 
                                Floor_Spike, West_Wall_Spike)
 
 
@@ -288,13 +288,3 @@ class Game:
             # Update display
             pygame.display.update()
             self.clock.tick(30)
-
-
-def main():
-    """Entry point of the game"""
-    game = Game()
-    game.run()
-
-
-if __name__ == "__main__":
-    main()
