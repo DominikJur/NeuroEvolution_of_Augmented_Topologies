@@ -3,8 +3,21 @@ from pygame import mixer
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, scale: int, user_x: int, user_y: int):
+    def __init__(
+        self,
+        scale: int,
+        user_x: int,
+        user_y: int,
+        color: tuple = (255, 255, 255),
+        id: int = 0,
+        jump_key=pygame.K_SPACE,
+    ):
+
         super(Player, self).__init__()
+        self.id = id
+        self.jump_key = jump_key
+        self.color = color
+        self.player_id = id
         self.scale = scale
         self.user_x = user_x
         self.user_y = user_y
@@ -13,11 +26,14 @@ class Player(pygame.sprite.Sprite):
         ).convert_alpha()
         self.image_0 = pygame.transform.rotozoom(self.image_0, 0, scale)
         self.image_0 = pygame.transform.flip(self.image_0, True, False)
+        self.image_0.fill(self.color, special_flags=pygame.BLEND_RGBA_MIN)
         self.image_1: pygame.Surface = pygame.image.load(
             "graphics/sprite_1.png"
         ).convert_alpha()
+
         self.image_1 = pygame.transform.rotozoom(self.image_1, 0, scale)
         self.image_1 = pygame.transform.flip(self.image_1, True, False)
+        self.image_1.fill(self.color, special_flags=pygame.BLEND_RGBA_MIN)
         self.image_dead: pygame.Surface = pygame.image.load(
             "graphics/sprite_2.png"
         ).convert_alpha()
@@ -35,10 +51,11 @@ class Player(pygame.sprite.Sprite):
         self.index: int = 0
         self.gravity: int = 1 * scale
         self.velocity: int = 4 * scale
+        
         self.cooldown_count: int = 0
+        self.default_pos()
 
-    
-    def defult_pos(self) -> None:
+    def default_pos(self) -> None:
         self.rect.x = (self.user_x - self.rect.width) // 2
         self.rect.y = (self.user_y - self.rect.height) // 2
         if self.velocity < 0:
@@ -84,7 +101,7 @@ class Player(pygame.sprite.Sprite):
             self.jump_sound.play()
             self.cooldown_count = 0
             x, y = self.rect.x, self.rect.y
-            self.gravity = -10
+            self.gravity = -6 * self.scale
             self.image = self.image_1
             self.rect = pygame.Surface.get_rect(self.image)
             self.rect.x, self.rect.y = x, y

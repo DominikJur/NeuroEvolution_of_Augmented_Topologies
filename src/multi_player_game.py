@@ -1,18 +1,21 @@
-import random
-import sys
 import pygame
+import sys
+import random
+import numpy as np
 from pygame import mixer
 
-from src.coin import Coin
-from src.player import Player
-from src.spike import Ceilling_Spike, East_Wall_Spike, Floor_Spike, West_Wall_Spike
+from .coin import Coin
+from .player import Player
+from .spike import Ceilling_Spike, East_Wall_Spike, Floor_Spike, West_Wall_Spike
 
 
-class Game:
-    def __init__(self, headless=False, player_id=None, player_color=None):
-        """Initialize the game with necessary configurations"""
+class MultiPlayerGame:
+    def __init__(self, population_size=2, headless=False):
+        """Initialize the multiplayer game with necessary configurations"""
         pygame.init()
         self.headless = headless
+        self.population_size = population_size
+
         # Game constants
         self.scale = 2
         self.user_x = 288 * self.scale
@@ -20,22 +23,23 @@ class Game:
 
         # Initialize display
         self.screen = pygame.display.set_mode((self.user_x, self.user_y))
-        pygame.display.set_caption("Beware of the skewers!")
+        pygame.display.set_caption("Beware of the skewers! - Multiplayer")
 
-        # Initialize player
-        if player_color is None:
-            self.player_color = (255, 0, 0)
-        else:
-            self.player_color = player_color
-        if player_id is None:
-            player_id = 0
-
-        r, g, b = self.player_color
-        self.player_color = (r, g, b, 255)
-
-        self.player = Player(
-            self.scale, self.user_x, self.user_y, self.player_color, player_id
-        )
+        # Initialize player-related data
+        self.players = []
+        self.agent_colors = np.random.randint(50, 255, (population_size, 3))
+        self.jump_keys = [
+            pygame.K_1,
+            pygame.K_2,
+            pygame.K_3,
+            pygame.K_4,
+            pygame.K_5,
+            pygame.K_6,
+            pygame.K_7,
+            pygame.K_8,
+            pygame.K_9,
+            pygame.K_0,
+        ][:population_size]
 
         # Load persistent data
         self.high_score = self._load_high_score()
@@ -47,9 +51,6 @@ class Game:
         self.score = 0
 
         # Initialize game objects
-        self.player = Player(
-            self.scale, self.user_x, self.user_y, self.player_color, player_id
-        )
         self.east_spikes = []
         self.west_spikes = []
         self.coin_list = []
@@ -62,6 +63,19 @@ class Game:
 
         # Initialize static elements
         self._setup_floor_and_ceiling()
+
+        # Create players
+        self._create_players()
+
+    def _create_players(self):
+        """Create all players for the game"""
+        self.players = []
+        for i in range(self.population_size):
+            color = tuple(self.agent_colors[i])
+            player = Player(
+                self.scale, self.user_x, self.user_y, color, i, self.jump_keys[i]
+            )
+            self.players.append(player)
 
     def _load_high_score(self):
         """Load high score from file"""
@@ -142,32 +156,32 @@ class Game:
         else:
             return [], [West_Wall_Spike(self.scale) for _ in range(count)], count
 
-    def generate_spikes(self):
+    def generate_spikes(self, collision_flag):
         """Generate wall spikes when player collides with wall"""
-        east_spikes, west_spikes, count = self._randomize_spikes(
-            self.player.check_wall_collision()
-        )
-        pos_list = random.sample(range(2, 9), count)
+        east_spikes, west_spikes, count = self._randomize_spikes(collision_flag)
+        if count > 0:
+            pos_list = random.sample(range(2, 9), count)
 
-        west_spikes = [
-            spike.set_position(0, pos_list.pop() * 32 * self.scale)
-            for spike in west_spikes
-        ]
-        east_spikes = [
-            spike.set_position(
-                self.user_x - spike.rect.width, pos_list.pop() * 32 * self.scale
-            )
-            for spike in east_spikes
-        ]
+            west_spikes = [
+                spike.set_position(0, pos_list.pop() * 32 * self.scale)
+                for spike in west_spikes
+            ]
+            east_spikes = [
+                spike.set_position(
+                    self.user_x - spike.rect.width, pos_list.pop() * 32 * self.scale
+                )
+                for spike in east_spikes
+            ]
 
         return east_spikes, west_spikes
 
     def manage_spikes(self):
-        """Handle spike rendering and collision detection"""
+        """Handle spike rendering and collision detection for all players"""
         for spike in self.east_spikes + self.west_spikes:
             self.screen.blit(spike.image, spike.rect)
-            if spike.rect.colliderect(self.player.rect):
-                self.player.death()
+            for player in self.players:
+                if not player.dead and spike.rect.colliderect(player.rect):
+                    player.death()
 
     def generate_coins(self):
         """Generate a new coin if none exist"""
@@ -178,32 +192,43 @@ class Game:
             self.coin_list = [coin.set_position(x, y)]
 
     def manage_coins(self):
-        """Handle coin rendering and collection"""
+        """Handle coin rendering and collection for all players"""
         for coin in self.coin_list:
             self.screen.blit(coin.image, coin.rect)
-            if coin.rect.colliderect(self.player.rect):
-                self.coin_sound.play()
-                self.coin_list = []
-                self.coin_total += 1
+            for player in self.players:
+                if not player.dead and coin.rect.colliderect(player.rect):
+                    self.coin_sound.play()
+                    self.coin_list = []
+                    self.coin_total += 1
 
     def check_static_spike_collisions(self):
-        """Check collisions with floor and ceiling spikes"""
+        """Check collisions with floor and ceiling spikes for all players"""
         for spike in self.floor_spikes + self.ceiling_spikes:
-            if spike.rect.colliderect(self.player.rect):
-                self.player.death()
+            for player in self.players:
+                if not player.dead and spike.rect.colliderect(player.rect):
+                    player.death()
 
-    def handle_wall_collision(self):
-        """Handle player collision with walls"""
-        if self.player.check_wall_collision() != 0:
-            self.player.after_collision()
-            self.score += 1
-            self.generate_coins()
-            self.east_spikes, self.west_spikes = self.generate_spikes()
+    def handle_wall_collisions(self):
+        """Handle wall collisions for all players"""
+        collision_occurred = False
+        for player in self.players:
+            if not player.dead:
+                collision_flag = player.check_wall_collision()
+                if collision_flag != 0:
+                    player.after_collision()
+                    if not collision_occurred:  # Only generate spikes once per frame
+                        self.score += 1
+                        self.generate_coins()
+                        self.east_spikes, self.west_spikes = self.generate_spikes(
+                            collision_flag
+                        )
+                        collision_occurred = True
 
     def reset_game(self):
         """Reset game state for new game"""
-        self.player.default_pos()
-        self.player.dead = False
+        for player in self.players:
+            player.default_pos()
+            player.dead = False
         self.coin_list = []
         self.score = 0
         self.east_spikes = []
@@ -218,16 +243,22 @@ class Game:
                 pygame.quit()
                 sys.exit()
 
-            if event.type == pygame.KEYDOWN and event.key == self.player.jump_key:
-                if self.player.dead:
-                    self.reset_game()
-                elif not self.running:
-                    self.running = True
-                    self.player.jump()
-                else:
-                    self.player.jump()
+            if event.type == pygame.KEYDOWN:
+                # Check each player's jump key
+                for player in self.players:
+                    if event.key == player.jump_key:
+                        if all(p.dead for p in self.players):  # All players dead
+                            self.reset_game()
+                        elif not self.running:
+                            self.running = True
+                            player.jump()
+                        else:
+                            player.jump()
 
-            if self.player.dead and event.type == pygame.MOUSEBUTTONDOWN:
+            if (
+                all(player.dead for player in self.players)
+                and event.type == pygame.MOUSEBUTTONDOWN
+            ):
                 # Check if clicked on retry button
                 button_x = self.user_x // 3
                 button_y = self.user_y // 5 * 2
@@ -277,10 +308,12 @@ class Game:
 
     def draw_start_screen(self):
         """Draw the start screen"""
-        self.player.default_pos()
-        self.player.start_screen_animation()
+        for player in self.players:
+            player.default_pos()
+            player.start_screen_animation()
+
         self.draw_text(
-            "Press jump key to start",
+            f"Press (1-{self.population_size}) to start",
             40 * self.scale,
             self.user_x // 2,
             self.user_y // 2 + 30 * self.scale,
@@ -304,35 +337,37 @@ class Game:
     def update_game(self):
         """Update game logic during active gameplay"""
         self.check_static_spike_collisions()
-        self.handle_wall_collision()
+        self.handle_wall_collisions()
         self.manage_coins()
         self.manage_spikes()
-        self.player.update()
 
-        if self.player.dead:
+        # Update all players
+        for player in self.players:
+            if not player.dead:
+                player.update()
+
+        # Check if all players are dead
+        if all(player.dead for player in self.players):
             self.west_spikes = []
             self.east_spikes = []
             self.running = False
 
-    def get_state_info(self):
-        """Get current game state information"""
-        player_velocity = self.player.velocity
-        player_pos = (self.player.rect.x, self.player.rect.y)
-        player_gravity = self.player.gravity
-        player_dead = self.player.dead
-        east_spike_pos = [spike.rect.y for spike in self.east_spikes]
-        west_spike_pos = [spike.rect.y for spike in self.west_spikes]
+    def draw_players(self):
+        """Draw all players"""
+        for player in reversed(self.players):
+            self.screen.blit(player.image, player.rect)
 
-        return {
-            "player_velocity": player_velocity,
-            "player_pos": player_pos,
-            "player_gravity": player_gravity,
-            "player_dead": player_dead,
-            "east_spike_pos": east_spike_pos,
-            "west_spike_pos": west_spike_pos,
-            "score": self.score,
-            "coins": self.coin_total,
+    def get_state_info(self):
+        state_info = {
+            player.id: {
+                "position": player.rect.topleft,
+                "velocity": player.velocity,
+                "gravity": player.gravity,
+                "dead": player.dead,
+            }
+            for player in self.players
         }
+        return state_info
 
     def run(self):
         """Main game loop"""
@@ -342,7 +377,9 @@ class Game:
                 self.draw_background()
                 self.draw_ui()
 
-                if not self.player.dead:
+                all_dead = all(player.dead for player in self.players)
+
+                if not all_dead:
                     if self.running:
                         self.update_game()
                     else:
@@ -350,8 +387,8 @@ class Game:
                 else:
                     self.draw_death_screen()
 
-                # Draw player
-                self.screen.blit(self.player.image, self.player.rect)
+                # Draw all players
+                self.draw_players()
 
                 # Update high score
                 self.update_high_score()
@@ -363,13 +400,11 @@ class Game:
             while True:
                 self.handle_events()
 
-                if not self.player.dead:
+                all_dead = all(player.dead for player in self.players)
+
+                if not all_dead:
                     if self.running:
                         self.update_game()
-                    else:
-                        self.draw_start_screen()
-                else:
-                    self.draw_death_screen()
 
                 # Update high score
                 self.update_high_score()
