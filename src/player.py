@@ -22,26 +22,26 @@ class Player(pygame.sprite.Sprite):
         self.user_x = user_x
         self.user_y = user_y
         self.image_0: pygame.Surface = pygame.image.load(
-            "graphics/sprite_0.png"
+            "graphics\\sprite_0.png"
         ).convert_alpha()
         self.image_0 = pygame.transform.rotozoom(self.image_0, 0, scale)
         self.image_0 = pygame.transform.flip(self.image_0, True, False)
         self.image_0.fill(self.color, special_flags=pygame.BLEND_RGBA_MIN)
         self.image_1: pygame.Surface = pygame.image.load(
-            "graphics/sprite_1.png"
+            "graphics\\sprite_1.png"
         ).convert_alpha()
 
         self.image_1 = pygame.transform.rotozoom(self.image_1, 0, scale)
         self.image_1 = pygame.transform.flip(self.image_1, True, False)
         self.image_1.fill(self.color, special_flags=pygame.BLEND_RGBA_MIN)
         self.image_dead: pygame.Surface = pygame.image.load(
-            "graphics/sprite_2.png"
+            "graphics\\sprite_2.png"
         ).convert_alpha()
         self.image_dead = pygame.transform.rotozoom(self.image_dead, 0, scale)
         self.image_dead = pygame.transform.flip(self.image_dead, True, False)
-        self.collision_sound = mixer.Sound("aduio\wall_collision.mp3")
-        self.death_sound = mixer.Sound("aduio\game_over.mp3")
-        self.jump_sound = mixer.Sound("aduio\jump.mp3")
+        self.collision_sound = mixer.Sound("audio\\wall_collision.mp3")
+        self.death_sound = mixer.Sound("audio\\game_over.mp3")
+        self.jump_sound = mixer.Sound("audio\\jump.mp3")
         self.images = [self.image_0, self.image_1, self.image_dead]
         self.image = self.image_0
         self.rect: pygame.Rect = self.image.get_rect()

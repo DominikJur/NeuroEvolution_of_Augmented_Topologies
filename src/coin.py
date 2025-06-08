@@ -1,10 +1,12 @@
+import os
+
 import pygame
 
 
 class Coin(pygame.sprite.Sprite):
     def __init__(self, scale):
         super(Coin, self).__init__()
-        self.image = pygame.image.load("graphics\coin.png")
+        self.image = pygame.image.load(os.path.join("graphics", "coin.png"))
         self.image = pygame.Surface.convert_alpha(self.image)
         self.image = pygame.transform.rotozoom(self.image, 0, scale)
         self.rect = pygame.Surface.get_rect(self.image)

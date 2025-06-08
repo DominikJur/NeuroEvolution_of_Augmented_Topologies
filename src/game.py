@@ -1,11 +1,14 @@
+import os
 import random
 import sys
+
 import pygame
 from pygame import mixer
 
 from src.coin import Coin
 from src.player import Player
-from src.spike import Ceilling_Spike, East_Wall_Spike, Floor_Spike, West_Wall_Spike
+from src.spike import (Ceilling_Spike, East_Wall_Spike, Floor_Spike,
+                       West_Wall_Spike)
 
 
 class Game:
@@ -55,7 +58,7 @@ class Game:
         self.coin_list = []
 
         # Initialize sounds
-        self.coin_sound = mixer.Sound("aduio/coin_collect.mp3")
+        self.coin_sound = mixer.Sound(os.path.join("audio", "coin_collect.mp3"))
 
         # Initialize clock
         self.clock = pygame.time.Clock()
@@ -66,7 +69,7 @@ class Game:
     def _load_high_score(self):
         """Load high score from file"""
         try:
-            with open("data/high_score.txt") as file:
+            with open(os.path.join("data", "high_score.txt")) as file:
                 return file.read().strip()
         except FileNotFoundError:
             return "0"
@@ -74,7 +77,7 @@ class Game:
     def _load_coin_total(self):
         """Load total coins from file"""
         try:
-            with open("data/total_coins.txt") as file:
+            with open(os.path.join("data", "total_coins.txt")) as file:
                 return int(file.read().strip())
         except FileNotFoundError:
             return 0
@@ -82,9 +85,9 @@ class Game:
     def _save_data(self):
         """Save high score and coin total to files"""
         if int(self.start_high_score) < int(self.high_score):
-            with open("data/high_score.txt", "w") as file:
+            with open(os.path.join("data", "high_score.txt"), "w") as file:
                 file.write(f"{self.high_score}")
-        with open("data/total_coins.txt", "w") as file:
+        with open(os.path.join("data", "total_coins.txt"), "w") as file:
             file.write(f"{self.coin_total}")
 
     def _setup_floor_and_ceiling(self):
