@@ -212,9 +212,11 @@ def analyze_genome_behavior(genome):
     else:
         print("High complexity - sophisticated behavior")
 
-def visualize_best_genome(genome_path="models/best_genome.pkl"):
+def visualize_best_genome(filename="best_genome.pkl"):
     import pickle
     import os
+    
+    genome_path = os.path.join("models", filename)
     
     if not os.path.exists(genome_path):
         print(f"File not found: {genome_path}")

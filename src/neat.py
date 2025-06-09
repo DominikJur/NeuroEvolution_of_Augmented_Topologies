@@ -579,8 +579,17 @@ class FeedForwardNetwork:
         
         processed = set(self.input_ids)
         
+        # Add maximum iteration limit to prevent infinite loops
+        max_iterations = len(self.neurons) * 2  # Conservative limit
+        iteration_count = 0
+        
         while len(processed) < len(self.neurons) + len(self.input_ids):
             made_progress = False
+            iteration_count += 1
+            
+            # Break if we've exceeded max iterations
+            if iteration_count > max_iterations:
+                break
             
             for neuron in self.neurons:
                 if neuron.node_id in processed:
@@ -592,10 +601,13 @@ class FeedForwardNetwork:
                     value = sum(neuron_outputs[inp.node_id] * inp.weight for inp in neuron.inputs)
                     value += neuron.bias
 
+                    # Clamp extreme values to prevent overflow
+                    value = np.clip(value, -100, 100)
+
                     if neuron.activation == "tanh":
                         neuron_outputs[neuron.node_id] = np.tanh(value)
                     elif neuron.activation == "sigmoid":
-                        neuron_outputs[neuron.node_id] = 1 / (1 + np.exp(-np.clip(value, -500, 500)))
+                        neuron_outputs[neuron.node_id] = 1 / (1 + np.exp(-value))
                     elif neuron.activation == "relu":
                         neuron_outputs[neuron.node_id] = max(0, value)
                     else:
@@ -615,6 +627,7 @@ class FeedForwardNetwork:
                 outputs.append(0.0)
         
         return outputs
+        
     @staticmethod
     def create_from_genome(genome):
         input_ids = [node.node_id for node in genome.get_input_nodes()]

@@ -11,6 +11,7 @@ class Player(pygame.sprite.Sprite):
         color: tuple = (255, 255, 255),
         id: int = 0,
         jump_key=pygame.K_SPACE,
+        headless: bool = False,
     ):
 
         super(Player, self).__init__()
@@ -21,6 +22,8 @@ class Player(pygame.sprite.Sprite):
         self.scale = scale
         self.user_x = user_x
         self.user_y = user_y
+        self.headless = headless
+        
         self.image_0: pygame.Surface = pygame.image.load(
             "graphics\\sprite_0.png"
         ).convert_alpha()
@@ -39,9 +42,22 @@ class Player(pygame.sprite.Sprite):
         ).convert_alpha()
         self.image_dead = pygame.transform.rotozoom(self.image_dead, 0, scale)
         self.image_dead = pygame.transform.flip(self.image_dead, True, False)
-        self.collision_sound = mixer.Sound("audio\\wall_collision.mp3")
-        self.death_sound = mixer.Sound("audio\\game_over.mp3")
-        self.jump_sound = mixer.Sound("audio\\jump.mp3")
+        
+        # Only load sounds if not headless
+        if not self.headless:
+            try:
+                self.collision_sound = mixer.Sound("audio\\wall_collision.mp3")
+                self.death_sound = mixer.Sound("audio\\game_over.mp3")
+                self.jump_sound = mixer.Sound("audio\\jump.mp3")
+            except:
+                self.collision_sound = None
+                self.death_sound = None
+                self.jump_sound = None
+        else:
+            self.collision_sound = None
+            self.death_sound = None
+            self.jump_sound = None
+            
         self.images = [self.image_0, self.image_1, self.image_dead]
         self.image = self.image_0
         self.rect: pygame.Rect = self.image.get_rect()
@@ -92,13 +108,15 @@ class Player(pygame.sprite.Sprite):
         return 0
 
     def after_collision(self) -> None:
-        self.collision_sound.play()
+        if self.collision_sound:
+            self.collision_sound.play()
         self.flip()
         self.velocity *= -1
 
     def jump(self) -> None:
         if not self.dead:
-            self.jump_sound.play()
+            if self.jump_sound:
+                self.jump_sound.play()
             self.cooldown_count = 0
             x, y = self.rect.x, self.rect.y
             self.gravity = -6 * self.scale
@@ -119,5 +137,6 @@ class Player(pygame.sprite.Sprite):
 
     def death(self) -> None:
         self.dead = True
-        self.death_sound.play()
+        if self.death_sound:
+            self.death_sound.play()
         self.image = self.image_dead

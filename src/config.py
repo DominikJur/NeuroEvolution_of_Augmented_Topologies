@@ -1,34 +1,35 @@
+# Optimized config.py for spike avoidance game
+
 class Config:
     def __init__(self):
         self.population_size = 150
-        self.survival_threshold = 0.15
+        self.survival_threshold = 0.15  # Keep aggressive selection for precision timing
         
-        # SOLUTION 1: Lower compatibility threshold
-        self.compatibility_threshold = 2.0  # Was 4.5 - much more sensitive
+        # CRITICAL FIX: Much lower compatibility threshold to force more species
+        self.compatibility_threshold = 2.5 
         
-        self.stagnation_threshold = 20
+        # OPTIMIZED: Faster species innovation for shorter training runs
+        self.stagnation_threshold = 15  # Reduced from 25 for faster innovation
         
-        # SOLUTION 2: Increase initial weight variance
-        self.weight_init_stdev = 1.5  # Was 0.5 - more diverse weights
+        # Keep the rest of your stable parameters
+        self.weight_init_stdev = 1.0
         self.weight_min = -8.0
         self.weight_max = 8.0
-        self.weight_mutation_rate = 0.8
-        self.weight_mutate_power = 0.8  # Was 0.4 - larger mutations
-        self.weight_replace_rate = 0.2  # Was 0.1 - more radical changes
+        self.weight_mutation_rate = 0.4
+        self.weight_mutate_power = 0.6
+        self.weight_replace_rate = 0.15
         
-        # SOLUTION 3: Increase bias variance  
-        self.bias_init_stdev = 1.0  # Was 0.3 - more diverse biases
+        self.bias_init_stdev = 0.8
         self.bias_min = -4.0
         self.bias_max = 4.0
-        self.bias_mutation_rate = 0.6
-        self.bias_mutate_power = 0.5  # Was 0.2 - larger mutations
-        self.bias_replace_rate = 0.15  # Was 0.08 - more replacement
+        self.bias_mutation_rate = 0.4
+        self.bias_mutate_power = 0.4
+        self.bias_replace_rate = 0.1
         
-        # SOLUTION 4: Increase structural mutation rates early
-        self.add_connection_rate = 0.7  # Was 0.5 - more connections
-        self.add_node_rate = 0.3  # Was 0.2 - more complexity
-        self.remove_connection_rate = 0.05  # Was 0.0 - some pruning
-        self.remove_node_rate = 0.02  # Was 0.0 - some simplification
-        self.toggle_connection_rate = 0.05  # Was 0.02 - more toggling
+        self.add_connection_rate = 0.5
+        self.add_node_rate = 0.1
+        self.remove_connection_rate = 0.1
+        self.remove_node_rate = 0.05
+        self.toggle_connection_rate = 0.1
 
 config = Config()

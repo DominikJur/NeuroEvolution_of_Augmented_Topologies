@@ -14,20 +14,27 @@ from src.spike import (Ceilling_Spike, East_Wall_Spike, Floor_Spike,
 class Game:
     def __init__(self, headless=False, player_id=None, player_color=None):
         """Initialize the game with necessary configurations"""
-        pygame.init()
+        # FIXED: Don't reinitialize pygame if already initialized
+        if not pygame.get_init():
+            pygame.init()
+            
         self.headless = headless
         # Game constants
         self.scale = 2
         self.user_x = 288 * self.scale
         self.user_y = 352 * self.scale
 
-        # Initialize display
-        self.screen = pygame.display.set_mode((self.user_x, self.user_y))
-        pygame.display.set_caption("Beware of the skewers!")
+        # Initialize display - always set a mode
+        if not self.headless:
+            self.screen = pygame.display.set_mode((self.user_x, self.user_y))
+            pygame.display.set_caption("Beware of the skewers!")
+        else:
+            # Use minimal display for headless (dummy driver already set)
+            self.screen = pygame.display.set_mode((self.user_x, self.user_y))
 
         # Initialize player
         if player_color is None:
-            self.player_color = (255, 0, 0)
+            self.player_color = (255, 255, 255)
         else:
             self.player_color = player_color
         if player_id is None:
@@ -37,7 +44,7 @@ class Game:
         self.player_color = (r, g, b, 255)
 
         self.player = Player(
-            self.scale, self.user_x, self.user_y, self.player_color, player_id
+            self.scale, self.user_x, self.user_y, self.player_color, player_id, headless=self.headless
         )
 
         # Load persistent data
@@ -51,20 +58,46 @@ class Game:
 
         # Initialize game objects
         self.player = Player(
-            self.scale, self.user_x, self.user_y, self.player_color, player_id
+            self.scale, self.user_x, self.user_y, self.player_color, player_id, headless=self.headless
         )
         self.east_spikes = []
         self.west_spikes = []
         self.coin_list = []
 
-        # Initialize sounds
-        self.coin_sound = mixer.Sound(os.path.join("audio", "coin_collect.mp3"))
+        # Initialize sounds only if not headless
+        if not self.headless:
+            try:
+                self.coin_sound = mixer.Sound(os.path.join("audio", "coin_collect.mp3"))
+            except:
+                self.coin_sound = None
+        else:
+            self.coin_sound = None
 
         # Initialize clock
         self.clock = pygame.time.Clock()
 
         # Initialize static elements
         self._setup_floor_and_ceiling()
+
+    def cleanup(self):
+        """Properly cleanup game resources"""
+        try:
+            if hasattr(self, 'coin_sound') and self.coin_sound:
+                del self.coin_sound
+            if hasattr(self, 'player'):
+                del self.player
+            if hasattr(self, 'east_spikes'):
+                del self.east_spikes
+            if hasattr(self, 'west_spikes'):
+                del self.west_spikes
+            if hasattr(self, 'coin_list'):
+                del self.coin_list
+            if hasattr(self, 'floor_spikes'):
+                del self.floor_spikes
+            if hasattr(self, 'ceiling_spikes'):
+                del self.ceiling_spikes
+        except:
+            pass
 
     def _load_high_score(self):
         """Load high score from file"""
@@ -84,11 +117,16 @@ class Game:
 
     def _save_data(self):
         """Save high score and coin total to files"""
-        if int(self.start_high_score) < int(self.high_score):
-            with open(os.path.join("data", "high_score.txt"), "w") as file:
-                file.write(f"{self.high_score}")
-        with open(os.path.join("data", "total_coins.txt"), "w") as file:
-            file.write(f"{self.coin_total}")
+        try:
+            if int(self.start_high_score) < int(self.high_score):
+                os.makedirs("data", exist_ok=True)
+                with open(os.path.join("data", "high_score.txt"), "w") as file:
+                    file.write(f"{self.high_score}")
+            os.makedirs("data", exist_ok=True)
+            with open(os.path.join("data", "total_coins.txt"), "w") as file:
+                file.write(f"{self.coin_total}")
+        except Exception as e:
+            print(f"Error saving data: {e}")
 
     def _setup_floor_and_ceiling(self):
         """Initialize floor and ceiling spikes"""
@@ -114,11 +152,21 @@ class Game:
 
     def draw_text(self, text, size, x, y):
         """Draw text on the screen"""
-        font = pygame.font.Font("font\\Pixeltype.ttf", size)
-        text_surface = font.render(text, True, "white")
-        text_rect = text_surface.get_rect()
-        text_rect.midtop = (x, y)
-        self.screen.blit(text_surface, text_rect)
+        if self.headless:
+            return  # Skip drawing in headless mode
+        try:
+            font = pygame.font.Font("font\\Pixeltype.ttf", size)
+            text_surface = font.render(text, True, "white")
+            text_rect = text_surface.get_rect()
+            text_rect.midtop = (x, y)
+            self.screen.blit(text_surface, text_rect)
+        except:
+            # Fallback to default font if custom font fails
+            font = pygame.font.Font(None, size)
+            text_surface = font.render(text, True, "white")
+            text_rect = text_surface.get_rect()
+            text_rect.midtop = (x, y)
+            self.screen.blit(text_surface, text_rect)
 
     def update_high_score(self):
         """Update high score if current score is higher"""
@@ -168,7 +216,8 @@ class Game:
     def manage_spikes(self):
         """Handle spike rendering and collision detection"""
         for spike in self.east_spikes + self.west_spikes:
-            self.screen.blit(spike.image, spike.rect)
+            if not self.headless:
+                self.screen.blit(spike.image, spike.rect)
             if spike.rect.colliderect(self.player.rect):
                 self.player.death()
 
@@ -183,9 +232,11 @@ class Game:
     def manage_coins(self):
         """Handle coin rendering and collection"""
         for coin in self.coin_list:
-            self.screen.blit(coin.image, coin.rect)
+            if not self.headless:
+                self.screen.blit(coin.image, coin.rect)
             if coin.rect.colliderect(self.player.rect):
-                self.coin_sound.play()
+                if self.coin_sound:
+                    self.coin_sound.play()
                 self.coin_list = []
                 self.coin_total += 1
 
@@ -218,7 +269,8 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self._save_data()
-                pygame.quit()
+                if not self.headless:
+                    pygame.quit()
                 sys.exit()
 
             if event.type == pygame.KEYDOWN and event.key == self.player.jump_key:
@@ -245,6 +297,9 @@ class Game:
 
     def draw_background(self):
         """Draw the game background"""
+        if self.headless:
+            return  # Skip drawing in headless mode
+            
         self.screen.fill("#c3c3c3")
 
         # Draw floor
@@ -259,6 +314,9 @@ class Game:
 
     def draw_ui(self):
         """Draw the user interface elements"""
+        if self.headless:
+            return  # Skip drawing in headless mode
+            
         self.draw_text(
             f"Score: {self.score}",
             40 * self.scale,
@@ -280,6 +338,9 @@ class Game:
 
     def draw_start_screen(self):
         """Draw the start screen"""
+        if self.headless:
+            return  # Skip drawing in headless mode
+            
         self.player.default_pos()
         self.player.start_screen_animation()
         self.draw_text(
@@ -291,6 +352,9 @@ class Game:
 
     def draw_death_screen(self):
         """Draw the death/retry screen"""
+        if self.headless:
+            return  # Skip drawing in headless mode
+            
         # Draw retry button
         button_rect = pygame.Rect(
             self.user_x // 3, self.user_y // 5 * 2, self.user_x // 3, self.user_y // 6
@@ -377,6 +441,5 @@ class Game:
                 # Update high score
                 self.update_high_score()
 
-                # Update display
-                pygame.display.update()
+                # No display update in headless mode
                 self.clock.tick(30)
